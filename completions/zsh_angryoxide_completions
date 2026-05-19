@@ -1,0 +1,49 @@
+#compdef angryoxide
+
+_list_wireless_interfaces() {
+    local -a interfaces
+    interfaces=($(iw dev | grep Interface | awk '{print $2}'))
+    _describe 'interface' interfaces
+}
+
+_angryoxide() {
+    local -a options
+    local state
+
+    _arguments -C \
+        '1: :->command' \
+        '(-i --interface)'{-i,--interface}'[Interface to use]:interface:_list_wireless_interfaces' \
+        '(-c --channel)'{-c,--channel}'[Optional - Channel to scan (default: 1,6,11)]:channel:' \
+        '(-b --band)'{-b,--band}'[Optional - Entire band to scan]:band:(2 5 6 60)' \
+        '(-o --output)'{-o,--output}'[Optional - Output filename]:output file:_files' \
+        '(-h --help)'{-h,--help}'[Print help]' \
+        '(-V --version)'{-V,--version}'[Print version]' \
+        '(-t --target-entry)'{-t,--target-entry}'[Optional - Target (MAC or SSID) to attack]:target entry:' \
+        '(-w --whitelist-entry)'{-w,--whitelist-entry}'[Optional - Whitelist (MAC or SSID) to NOT attack]:whitelist entry:' \
+        '--targetlist[Optional - File to load target entries from]:targets file:_files' \
+        '--whitelist[Optional - File to load whitelist entries from]:whitelist file:_files' \
+        '(-r --rate)'{-r,--rate}'[Optional - Attack rate (1, 2, 3)]:rate:(1 2 3)' \
+        '--combine[Optional - Combine all hc22000 files into one large file for bulk processing]' \
+        '--active[Optional - Enable Active Monitor mode]' \
+        '--rogue[Optional - Tx MAC for rogue-based attacks]:MAC Address:' \
+        '--gpsd[Optional - Alter default HOST:Port for GPSD connection]:GPSD Host:Port:' \
+        '--autohunt[Optional - AO will auto-hunt all channels then lock in]' \
+        '--headless[Optional - Set the tool to headless mode without a UI]' \
+        '--autoexit[Optional - AO will auto-exit when all targets have a valid hashline]' \
+        '--notransmit[Optional - Do not transmit - passive only]' \
+        '--notar[Optional - Do not tar output files]' \
+        '--disablemouse[Optional - Disable mouse capture (scroll wheel)]' \
+        '--dwell[Optional - Adjust channel hop dwell time (seconds)]:Dwell Time (seconds):' \
+        '--geofence[Optional - Enable geofencing using a specified latlng and distance]' \
+        '--center[Lat,Lng for geofencing]:CENTER:' \
+        '--distance[Distance in meters from the center]:DISTANCE:' \
+        '--geofence-timeout[Timeout to disable geofence if GPS is lost]:GEOFENCE_TIMEOUT:' \
+        '--disable-deauth[Optional - Do NOT send deauthentication attacks]' \
+        '--disable-pmkid[Optional - Do NOT attempt to associate for PMKID]' \
+        '--disable-anon[Optional - Do NOT send anonymous reassociation attacks]' \
+        '--disable-csa[Optional - Do NOT send Channel Switch Announcement attacks]' \
+        '--disable-disassoc[Optional - Do NOT send disassociation attacks]' \
+        '--disable-roguem2[Optional - Do NOT attempt rogue M2 collection]'
+}
+
+_angryoxide "$@"
