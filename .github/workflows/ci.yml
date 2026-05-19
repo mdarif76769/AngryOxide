@@ -1,0 +1,122 @@
+name: Builds and Release
+
+on:
+  push:
+    tags:
+      - "*"
+
+env:
+  CRATE_NAME: angry_oxide
+  GITHUB_TOKEN: ${{ github.token }}
+  RUST_BACKTRACE: 1
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: ${{ matrix.platform.os_name }} with rust ${{ matrix.toolchain }}
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - os_name: Linux-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin: angryoxide
+            name: angryoxide-linux-x86_64.tar.gz
+
+          - os_name: Linux-x86_64_musl
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            bin: angryoxide
+            name: angryoxide-linux-x86_64-musl.tar.gz
+
+          - os_name: Linux-aarch64
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            bin: angryoxide
+            name: angryoxide-linux-aarch64-musl.tar.gz
+
+          - os_name: Linux-arm
+            os: ubuntu-latest
+            target: arm-unknown-linux-musleabi
+            bin: angryoxide
+            name: angryoxide-linux-arm-musl.tar.gz
+
+          - os_name: Linux-armv7hf
+            os: ubuntu-latest
+            target: armv7-unknown-linux-musleabihf
+            bin: angryoxide
+            name: angryoxide-linux-armv7hf-musl.tar.gz
+
+          - os_name: Linux-aarch64-gnu
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            bin: angryoxide
+            name: angryoxide-linux-aarch64-gnu.tar.gz
+
+        toolchain:
+          - stable
+          
+    steps:
+      - uses: actions/checkout@v3  
+        with:
+          submodules: true
+      - name: Cache cargo & target directories
+        uses: Swatinem/rust-cache@v2
+      - name: Configure Git
+        run: |
+          git config --global user.email "jdoe@example.com"
+          git config --global user.name "J. Doe"
+      - name: Install musl-tools on Linux
+        run: sudo apt-get update --yes && sudo apt-get install --yes musl-tools
+        if: contains(matrix.platform.name, 'musl')
+      
+      - name: Install cross
+        id: cross-nix
+        shell: bash
+        run: |
+          set -e
+          export TARGET="$HOME/bin"
+          mkdir -p "$TARGET"
+          ./bootstrap/bootstrap-ubi.sh
+          "$HOME/bin/ubi" --project cross-rs/cross --matching musl --in .          
+        if: matrix.platform.cross && !contains(matrix.platform.target, 'gnu')
+      
+      - name: Install cross (gnu)
+        id: cross-nix-gnu
+        shell: bash
+        run: |
+          set -e
+          export TARGET="$HOME/bin"
+          mkdir -p "$TARGET"
+          ./bootstrap/bootstrap-ubi.sh
+          "$HOME/bin/ubi" --project cross-rs/cross --matching musl --in .
+        if: matrix.platform.cross && contains(matrix.platform.target, 'gnu')
+
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v0
+        with:
+          command: "build"
+          target: ${{ matrix.platform.target }}
+          toolchain: ${{ matrix.toolchain }}
+          args: "--locked --release"
+          strip: true
+        if: ${{ !contains(matrix.platform.target, 'mips') }}
+  
+      - name: Package as archive
+        shell: bash
+        run: |
+          cd target/${{ matrix.platform.target }}/release
+          tar czvf ../../../${{ matrix.platform.name }} ${{ matrix.platform.bin }} ../../../install.sh ../../../completions
+          cd -
+        if: |
+          startsWith( github.ref, 'refs/tags/v' )
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          files: "angryoxide-*"
+        if: startsWith( github.ref, 'refs/tags/v' )
